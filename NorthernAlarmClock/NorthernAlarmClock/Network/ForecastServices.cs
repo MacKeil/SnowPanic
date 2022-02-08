@@ -12,12 +12,14 @@ namespace NorthernAlarmClock.Network
     class ForecastServices
     {
         #region Properties
+        private static DateTime lastInit;
         private HttpClient client;
         private NetworkHelper networkHelper;
         private LocationHelper locationHelper;
         private Uri NWS;
         private Uri NWSHourly;
         private Uri NWSForecast;
+        private Uri NWSGridData;
         private Uri geocoding;
         private bool cacheRequests;
         private bool needsAddress;
@@ -97,9 +99,19 @@ namespace NorthernAlarmClock.Network
         #region Public Methods
         public async Task<dynamic> getSnowFallAsync()
         {
-            ensureNWSLoaded();
-            HttpResponseMessage response = await client.GetAsync(NWS);
-            return "TODO";
+            beginInit();
+            HttpResponseMessage response = await client.GetAsync(NWSGridData);
+            if(response.IsSuccessStatusCode)
+            {
+                string content = await response.Content.ReadAsStringAsync();
+                var data = JsonConvert.DeserializeObject<dynamic>(content);
+                Models.Snowfall sf = data.properties.snowfallAmount;
+                return sf;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public dynamic getSnowFall()
@@ -120,6 +132,25 @@ namespace NorthernAlarmClock.Network
 
 
         #region Private Methods
+        private async void beginInit()
+        {
+            if (!initializedAlready())
+            {
+                getLocation();
+                ensureNWSLoaded();
+                HttpResponseMessage response = await client.GetAsync(NWS);
+                if (response.IsSuccessStatusCode)
+                {
+                    string content = await response.Content.ReadAsStringAsync();
+                    var data = JsonConvert.DeserializeObject<dynamic>(content);
+                    NWSGridData = new Uri(data.properties.forecastGridData);
+                    NWSForecast = new Uri(data.properties.forecast);
+                    NWSHourly = new Uri(data.properties.forecastHourly);
+                    lastInit = DateTime.Today;
+                }
+            }
+
+        }
         private bool useLocationToCheck()
         {
             if(!needsAddress && !cacheRequests)
@@ -130,6 +161,11 @@ namespace NorthernAlarmClock.Network
             {
                 return false;
             }
+        }
+
+        private bool initializedAlready()
+        {
+            return (lastInit == DateTime.Today);
         }
         private void getLocation()
         {
@@ -188,19 +224,6 @@ namespace NorthernAlarmClock.Network
             {
                 string loc = String.Format("{0},{1}", latitude, longitude);
                 NWS = new Uri(String.Format("{0}{1}{2}", Constants.nationalWeatherServiceBaseURL, Constants.initNWS, loc));
-            }
-        }
-
-        private void ensureNWSHourlyLoaded()
-        {
-
-        }
-
-        private void ensureNWSForecastLoaded()
-        {
-            if (NWSForecast.ToString().Length < 25)
-            {
-                
             }
         }
         #endregion

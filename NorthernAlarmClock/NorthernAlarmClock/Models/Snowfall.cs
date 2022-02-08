@@ -14,7 +14,7 @@ namespace NorthernAlarmClock.Models
             public double value { get; set; }
             
 
-            public double convertValueInvoices()
+            public double convertValueInches()
             {
                 return (value * 0.0393700787);
             }
