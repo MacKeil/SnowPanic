@@ -6,7 +6,7 @@ namespace NorthernAlarmClock.Models
 {
     class Alarm
     {
-        Day Days;
-        
+        public Day Days { get; set; }
+        public Time Time { get; set; }
     }
 }
